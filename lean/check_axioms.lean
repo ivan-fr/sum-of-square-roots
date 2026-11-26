@@ -1,0 +1,9 @@
+import SumOfSquareRoots
+
+#print axioms SumOfSquareRoots.k2_lower_bound
+#print axioms SumOfSquareRoots.k2_exact_constant_bound
+#print axioms SumOfSquareRoots.k2_upper_bound_family
+#print axioms SumOfSquareRoots.k2_upper_bound
+#print axioms SumOfSquareRoots.k3_exact_moment_cancellation
+#print axioms SumOfSquareRoots.k3_upper_bound_family
+#print axioms SumOfSquareRoots.k3_upper_bound

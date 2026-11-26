@@ -1,0 +1,59 @@
+name: CI — Lean 4 Sum-of-Square-Roots Proofs, Symbolic Verification & Paper Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lean4-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan & Lean 4.36.0
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+      - name: Fetch Mathlib cache & build SumOfSquareRoots
+        working-directory: lean
+        run: |
+          lake exe cache get
+          lake build SumOfSquareRoots
+      - name: Audit axioms & forbid sorry/native_decide
+        working-directory: lean
+        run: |
+          ! grep -rnE "\b(sorry|admit|native_decide|axiom )\b" SumOfSquareRoots/ SumOfSquareRoots.lean
+          lake env lean check_axioms.lean | tee axioms.log
+          ! grep -E "sorryAx|Lean\.ofReduceBool|Lean\.trustCompiler" axioms.log
+
+  symbolic-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SymPy & mpmath
+        run: pip install --no-cache-dir sympy mpmath
+      - name: Verify general-k symbolic lemmas & 250-digit inductive chain (k = 2..8)
+        run: python3 scripts/verify_general_k.py
+      - name: Verify explicit k = 4 rational family (u = 1600/379)
+        run: python3 scripts/verify_k4_family.py
+
+  paper-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify pure 7-bit ASCII LaTeX
+        run: |
+          python3 -c '
+          data = open("paper/sum_of_square_roots.tex", "rb").read()
+          bad = [b for b in data if b >= 128]
+          assert not bad, f"Non-ASCII bytes found: {len(bad)}"
+          print("LaTeX is 100% pure 7-bit ASCII.")
+          '
+      - name: Install tectonic & compile PDF
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+          ./tectonic paper/sum_of_square_roots.tex
+          ls -lh paper/sum_of_square_roots.pdf

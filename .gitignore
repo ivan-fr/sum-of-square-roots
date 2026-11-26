@@ -1,0 +1,11 @@
+lean/.lake/
+lean/axioms.log
+*.aux
+*.log
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+.DS_Store
+__pycache__/

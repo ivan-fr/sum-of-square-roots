@@ -1,0 +1,676 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\geometry{margin=2.5cm}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\QQ}{\mathbb{Q}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\ZZ}{\mathbb{Z}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\diff}{\operatorname{diff}}
+
+\title{Breaking the Linear-Ansatz Barrier for the Sum-of-Square-Roots Problem:\\
+$r(n, k) = O(n^{-2k + 1/2})$ for All $k \ge 2$, Sharp $k = 2$ Separation Bounds,\\
+and Lean~4 Formalization}
+
+\author{Ivan Besevic\\
+ESIEE-IT, France\\
+\texttt{ivan.besevic@edu.esiee-it.fr}\\
+ORCID: \texttt{0009-0004-4124-1465}}
+
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+For integers $n \ge 1$ and $k \ge 2$, let
+\[
+r(n, k) := \min \left\{ \left| \sum_{i=1}^k \sqrt{a_i} - \sum_{j=1}^k \sqrt{b_j} \right| > 0 \;:\; a_i, b_j \in \{1, \dots, n\} \right\}
+\]
+denote the minimal non-zero separation between two sums of $k$ square roots of integers bounded by $n$. Bounding $r(n, k)$ is the central bottleneck of the \emph{Sum-of-Square-Roots Problem} (Open Problems Project, Problem~33), which asks whether deciding $\sum_{i=1}^k \sqrt{a_i} \le \sum_{j=1}^k \sqrt{b_j}$ lies in $\mathrm{P}$ or even in $\mathrm{NP}$. For two decades, the sharpest constructive upper bound for general $k$ has been $r(n, k) = O(n^{-2k + 3/2})$, established by Qian and Wang (\emph{Inform.\ Process.\ Lett.}, 2006) using linear radicands $A_i^2 N + u_i$.
+
+In this paper we prove that for \emph{every} integer $k \ge 2$,
+\[
+r(n, k) = O\!\left(n^{-2k + 1/2}\right),
+\]
+improving the Qian--Wang constructive upper bound by a full factor of $n$ across every $k \ge 2$ and matching the birthday-paradox heuristic exponent $-2k + \frac{1}{2}$. Our proof explains why linear radicands hit an insurmountable Vandermonde wall at $O(n^{-2k + 3/2})$, and bypasses it via an even-symmetric quadratic radical ansatz combining $2k - 2$ pure terms $A_i^2 m^2 + q_i$ with a single conjugate pair $B^2 m^2 \pm r m + s$. In the Prony formulation, the moment sequence $\mu_j(-4)$ has infinite Hankel rank, and an inductive dipole perturbation reduces the existence of rational signed-measure realizations of signature $(+k, -(k-2))$ to universal $R \to \infty$ nodal quartic limits, Mazur's Torsion Theorem, and Kronecker density on $E(\RR)^\circ \cong S^1$.
+
+In addition, we establish:
+\begin{enumerate}
+\item \textbf{Explicit polynomial families for $k = 2, 3, 4$:} a constant-norm ($M \equiv 82944$) family for $k = 2$; a compact explicit family for $k = 3$ (at $u = 5$) with $\Delta_3(m) = -\frac{730468750000}{7} m^{-11} + O(m^{-13}) = \Theta(n^{-11/2})$; and an exact rational family for $k = 4$ (at $u = 1600/379$) via four iterated Fermat quartic steps achieving $r(n, 4) = O(n^{-15/2})$.
+\item \textbf{Sharp effective lower bounds for $k = 2$:} we prove $r(n, 2) \ge \frac{1}{4} n^{-7/2}$ for \emph{every} $n \ge 1$ ($4096\times$ sharper than the Burnikel--Fleischer--Mehlhorn--Schirra bound $4^{-7} n^{-7/2}$) and the exact asymptotic floor $\bigl(\frac{8}{27} - O(n^{-4})\bigr) n^{-7/2}$ ($4854\times$ sharper than BFMS). We also report a numerical conjugate-product constant $\approx 1.67 \times 10^{-4} n^{-31/2}$ for $k = 3$ and exhaustive search records up to $N = 4000$ ($k = 2$) and $N = 350$ ($k = 3$).
+\item \textbf{The 7-moment Diophantine barrier for $k = 3$:} we show that pushing our quadratic ansatz to $O(n^{-13/2})$ for $k = 3$ collapses to an algebraic surface of general type (genus-$13$ fibers, genus-$2$ slices) with exact hyperbolic $(+3, -1)$ window $v \in (\frac{97}{420}, \frac{1}{4})$ and $42 \mid \operatorname{lcm}(\operatorname{denom}(y_i))$; modular sieving over $8.5 \times 10^7$ rational candidates yields zero non-trivial rational points, consistent with Bombieri--Lang and the conjectured $\Omega(n^{-2k})$ barrier.
+\item \textbf{Machine-checked Lean~4.36.0 formalization:} our explicit $k = 3$ theorem $r(n, 3) = O(n^{-11/2})$ and sharp $k = 2$ lower and upper bounds are completely formalized and kernel-verified in Lean~4.36.0 + Mathlib with zero \texttt{sorry}, zero \texttt{native\_decide}, and strictly the three standard axioms \texttt{[propext, Classical.choice, Quot.sound]}.
+\end{enumerate}
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Given positive integers $a_1, \dots, a_k, b_1, \dots, b_k \in \{1, \dots, n\}$, the \emph{Sum-of-Square-Roots Problem} asks to decide the sign of
+\[
+\sum_{i=1}^k \sqrt{a_i} - \sum_{j=1}^k \sqrt{b_j}.
+\]
+Introduced in computational geometry by Garey, Graham, and Johnson~\cite{GareyGrahamJohnson1976} in connection with Euclidean shortest paths and minimum spanning trees, and listed as Problem~33 in the Open Problems Project~\cite{TOPP33}, this decision problem remains famously open as of 2026: it is not even known to lie in $\mathrm{NP}$, the best known complexity upper bound being the counting-hierarchy class $\mathrm{P}^{\mathrm{PP}^{\mathrm{PP}^{\mathrm{PP}}}}$ (Allender, B\"urgisser, Kjeldgaard-Pedersen, and Miltersen~\cite{ABKM2009}).
+
+Because the sum of square roots can be evaluated to $b$ bits of precision in time polynomial in $k$, $\log n$, and $b$, deciding its sign reduces to bounding the minimal non-zero separation
+\begin{equation}
+\label{eq:def-rnk}
+r(n, k) := \min \left\{ \left| \sum_{i=1}^k \sqrt{a_i} - \sum_{j=1}^k \sqrt{b_j} \right| > 0 \;:\; 1 \le a_i, b_j \le n \right\}.
+\end{equation}
+A polynomial-bit lower bound $-\log_2 r(n, k) = \mathrm{poly}(k, \log n)$ would immediately place the Sum-of-Square-Roots Problem in $\mathrm{P}$. However, the gap between proved lower bounds and constructive upper bounds remains vast:
+\begin{itemize}
+\item \textbf{Effective lower bounds:} Using degree bounds and root separation in the multiquadratic extension $\QQ(\sqrt{a_1}, \dots, \sqrt{b_k})$, Burnikel, Fleischer, Mehlhorn, and Schirra~\cite{BFMS2000} established the doubly exponential lower bound
+\[
+r(n, k) \ge (2k)^{-(2^{2k} - 1)} n^{-(2^{2k - 1} - 1/2)},
+\]
+later refined in the exponent to $O(2^{2k - 2})$ for fixed sums via algebraic-degree reductions by Cheng, Meng, Sun, and Chen~\cite{Cheng2010}. Recently, Eisenbrand, Haeberle, and Singer~\cite{EHS2024} applied Schmidt's Subspace Theorem to obtain a polynomial-degree bound $|\sum_{i=1}^m x_i \sqrt{a_i}| \ge \gamma(a_1, \dots, a_m) (m \max_i |x_i|)^{-2m}$, but only for \emph{fixed} radicands $a_i$ and with a non-effective constant $\gamma$.
+\item \textbf{Heuristic and conjectured separation:} A pigeonhole / birthday-paradox count over the $\binom{n + k - 1}{k} = \Theta(n^k)$ sums of $k$ square roots inside $[0, k\sqrt{n}]$ predicts typical minimal gaps of order
+\[
+r(n, k) \approx \frac{k \sqrt{n}}{\binom{n + k - 1}{k}^2} = \Theta\!\left(n^{-2k + 1/2}\right),
+\]
+and the prevailing conjecture (see~\cite{TOPP33,QianWang2006}) asserts that $r(n, k) = \Omega(n^{-2k})$, or at least $r(n, k) \ge n^{-O(k)}$.
+\item \textbf{Constructive upper bounds:} Using an explicit family of linear radicands $a_i(N) = A_i^2 N + u_i$ with rational weights canceling the first $2k - 1$ Taylor moments, Qian and Wang~\cite{QianWang2006} proved
+\[
+r(n, k) = O\!\left(n^{-2k + 3/2}\right) \qquad (\forall k \ge 2),
+\]
+yielding $r(n, 2) = O(n^{-5/2})$ from their general construction (while noting $r(n, 2) = \Theta(n^{-7/2})$ separately), $r(n, 3) = O(n^{-9/2})$, and $r(n, 4) = O(n^{-13/2})$.
+\end{itemize}
+
+\subsection{Why Linear Radicands Hit a Wall at $O(n^{-2k + 3/2})$}
+
+Before presenting our construction, we observe why the exponent $-2k + \frac{3}{2}$ of Qian and Wang~\cite{QianWang2006} is an absolute barrier for linear radicands.
+
+\begin{proposition}[Vandermonde Wall for Linear Radicands]
+\label{prop:linear-wall}
+Let $A_1, \dots, A_k, B_1, \dots, B_k > 0$ and $u_1, \dots, u_k, v_1, \dots, v_k \in \RR$. Define
+\[
+\Delta_{\mathrm{lin}}(N) := \sum_{i=1}^k \sqrt{A_i^2 N + u_i} - \sum_{j=1}^k \sqrt{B_j^2 N + v_j}.
+\]
+If $\Delta_{\mathrm{lin}}(N) = o\!\left(N^{-2k + 3/2}\right)$ as $N \to \infty$, then $\Delta_{\mathrm{lin}}(N) \equiv 0$ identically.
+\end{proposition}
+
+\begin{proof}
+Set $t_i := u_i / A_i^2$ ($1 \le i \le k$), $t_{k+j} := v_j / B_j^2$ ($1 \le j \le k$), $w_i := A_i$, and $w_{k+j} := -B_j$. Expanding in $x = 1/N$ yields
+\[
+\Delta_{\mathrm{lin}}(N) = \sqrt{N} \sum_{m=0}^{\infty} \binom{1/2}{m} \left(\sum_{r=1}^{2k} w_r t_r^m\right) N^{-m}.
+\]
+The condition $\Delta_{\mathrm{lin}}(N) = o(N^{-2k + 3/2})$ forces the $2k$ moments $m = 0, 1, \dots, 2k - 1$ to vanish identically:
+\[
+\sum_{r=1}^{2k} w_r t_r^m = 0 \qquad (m = 0, 1, \dots, 2k - 1).
+\]
+Grouping identical nodes $t_r$ into $s \le 2k$ distinct values $\tau_1, \dots, \tau_s$ with combined weights $W_1, \dots, W_s$, the first $s$ equations form an invertible $s \times s$ Vandermonde system $\sum_{\ell=1}^s W_\ell \tau_\ell^m = 0$ ($0 \le m < s$), forcing $W_1 = \dots = W_s = 0$. Hence all terms cancel pairwise and $\Delta_{\mathrm{lin}}(N) \equiv 0$.
+\end{proof}
+
+\subsection{Main Results}
+
+We break the linear-ansatz wall for \emph{every} $k \ge 2$ by switching to \emph{even-symmetric quadratic radicands} in an integer parameter $m$ (so $n = \Theta(m^2)$): $2k - 2$ pure terms $A_i^2 m^2 + q_i$ balanced against a \emph{single} conjugate pair $B^2 m^2 \pm r m + s$. All odd powers of $m^{-1}$ vanish by symmetry, and the even moments of the conjugate pair have \emph{infinite Hankel rank}, avoiding the Vandermonde collapse of Proposition~\ref{prop:linear-wall}.
+
+\begin{theorem}[All-$k$ Constructive Upper Bound]
+\label{thm:general-k}
+For every integer $k \ge 2$, there exist constants $C_k > 0$ and $N_k \ge 1$ such that for all integers $n \ge N_k$,
+\[
+r(n, k) \le C_k \, n^{-2k + 1/2}.
+\]
+In particular, $r(n, k) = O\!\left(n^{-2k + 1/2}\right)$ for every $k \ge 2$, improving Qian and Wang~\cite{QianWang2006} by a factor of $n$ for all $k \ge 2$.
+\end{theorem}
+
+For small $k$, we exhibit completely explicit polynomial families with concrete constants, and formalize the $k = 2$ and $k = 3$ bounds in Lean~4.36.0:
+
+\begin{theorem}[Explicit $k = 3$ Family and Global Bound]
+\label{thm:k3-explicit}
+For every integer $m \ge 8$, the six strictly positive integers
+\begin{align*}
+a_1(m) &= 28968^2 (m^2 - 55), & b_1(m) &= 13720^2 (49 m^2 - 1295), \\
+a_2(m) &= 53125^2 (m^2 - 35), & b_2(m) &= 81600^2 (m^2 + 10 m + 20), \\
+a_3(m) &= 59049^2 (9 m^2 + 5), & b_3(m) &= 81600^2 (m^2 - 10 m + 20)
+\end{align*}
+satisfy $\max(a_i, b_j) = a_3(m) = \Theta(m^2)$ and
+\[
+\sum_{i=1}^3 \sqrt{a_i(m)} - \sum_{j=1}^3 \sqrt{b_j(m)} = -\frac{730468750000}{7}\, m^{-11} + O\!\left(m^{-13}\right).
+\]
+Consequently, for every integer $n \ge 31\,381\,100\,000\,000\,000$,
+\[
+r(n, 3) \le \frac{10^{70}}{n^5 \sqrt{n}}.
+\]
+\end{theorem}
+
+\begin{theorem}[Sharp Effective Lower and Upper Bounds for $k = 2$]
+\label{thm:k2-bounds}
+\begin{enumerate}
+\item[(a)] For every integer $n \ge 1$ and all $a_1, a_2, b_1, b_2 \in \{1, \dots, n\}$ with $\sqrt{a_1} + \sqrt{a_2} \neq \sqrt{b_1} + \sqrt{b_2}$,
+\[
+\left|\sqrt{a_1} + \sqrt{a_2} - \sqrt{b_1} - \sqrt{b_2}\right| \ge \frac{1}{4\, n^3 \sqrt{n}},
+\]
+improving the Burnikel--Fleischer--Mehlhorn--Schirra bound $4^{-7} n^{-7/2}$ by a factor of $4096$. Moreover, as $n \to \infty$,
+\[
+r(n, 2) \ge \left(\frac{8}{27} - O\!\left(n^{-4}\right)\right) n^{-7/2},
+\]
+where $\frac{8}{27} \approx 0.296296$ is the exact maximum of the continuous normalized conjugate product.
+\item[(b)] For every integer $m \ge 3$, the explicit constant-norm ($M \equiv 82944$) family
+\[
+a_1(m) = 16 m^2,\quad a_2(m) = 4 m^2 - 24,\quad b_1(m) = 9 m^2 + 18 m - 9,\quad b_2(m) = 9 m^2 - 18 m - 9
+\]
+satisfies $\sqrt{a_1} + \sqrt{a_2} - \sqrt{b_1} - \sqrt{b_2} = -\frac{3}{2} m^{-7} - 15 m^{-9} + O(m^{-11})$, yielding $r(n, 2) \le \frac{2^{22}}{n^3 \sqrt{n}}$ for every $n \ge 144$.
+\end{enumerate}
+\end{theorem}
+
+\section{Even-Symmetric Quadratic Radicals and Prony Reformulation}
+\label{sec:prony}
+
+Fix a non-zero rational parameter $u \in \QQ \setminus \{0, 4\}$ (in our general-$k$ proof we set $u = -4$; in Theorem~\ref{thm:k3-explicit} we use $u = 5$; for our explicit $k = 4$ family we use $u = 1600/379$). Consider the even-symmetric conjugate pair
+\begin{equation}
+\label{eq:conjugate-pair}
+f_u(x) := \sqrt{1 + \sqrt{u}\, x + x^2} + \sqrt{1 - \sqrt{u}\, x + x^2}.
+\end{equation}
+Since $f_u(-x) = f_u(x)$, all odd powers of $x$ vanish identically in its Taylor expansion at $x = 0$. Expanding via the binomial series gives
+\[
+f_u(x) = \sum_{j=0}^{\infty} \binom{1/2}{j} \mu_j(u)\, x^{2j},
+\]
+where the \emph{normalized moment sequence} $\mu_j(u) \in \QQ[u]$ has the explicit closed form
+\begin{equation}
+\label{eq:mu-closed-form}
+\mu_j(u) := \frac{2}{\binom{1/2}{j}} \sum_{r=0}^{j} \binom{1/2}{j + r} \binom{j + r}{2 r} u^r \in \QQ[u] \qquad (j \ge 0).
+\end{equation}
+For $u = -4$, setting $y = 2x$ gives $f_{-4}(y/2) = \sqrt{1 + y - y^2/4} + \sqrt{1 - y - y^2/4}$ with $\mu_j(-4) \in \QQ$:
+\[
+\mu_0(-4) = 2,\;\; \mu_1(-4) = 4,\;\; \mu_2(-4) = 24,\;\; \mu_3(-4) = 144,\;\; \mu_4(-4) = \frac{4256}{5},\;\; \mu_5(-4) = \frac{35008}{7}, \dots
+\]
+Note that the linear combination of $L = 2k - 2$ pure quadratic radicals with rational nodes $t_1, \dots, t_L \in \QQ$ and weights $w_1, \dots, w_L \in \QQ$ expands as
+\[
+\sum_{i=1}^L w_i \sqrt{1 + t_i x^2} = \sum_{j=0}^{\infty} \binom{1/2}{j} \left(\sum_{i=1}^L w_i t_i^j\right) x^{2j}.
+\]
+(For $u = -4$ with $y = 2x$, $\sqrt{1 - \frac{t_i}{4} y^2}$ uses the same sign convention $x^2 = y^2 / (-4)$ after replacing $t_i \mapsto -t_i$; to keep all signs completely uniform across the general-$k$ proof and our verification script, we adopt the exact convention of~\eqref{eq:mu-closed-form} with $x^2 = -y^2 / 4$ at $u = -4$, i.e., $\sqrt{1 + y - y^2/4} + \sqrt{1 - y - y^2/4} = \sum_{j \ge 0} \binom{1/2}{j} \mu_j(-4) (-y^2/4)^j$ and pure terms $\sqrt{1 - (t_i/4) y^2}$.)
+
+\begin{lemma}[Reduction to Rational Signed-Measure Moments]
+\label{lem:moment-reduction}
+Fix $u \in \QQ \setminus \{0, 4\}$ and an integer $k \ge 2$, and set $L := 2k - 2$. Suppose there exist $L$ distinct rational nodes $t_1, \dots, t_L \in \QQ$ and rational weights $w_1, \dots, w_L \in \QQ$ satisfying:
+\begin{enumerate}
+\item[(1)] \textbf{Moment matching:} $\sum_{i=1}^L w_i t_i^j = \mu_j(u)$ for all $j = 0, 1, \dots, 2k - 1$;
+\item[(2)] \textbf{Non-degeneracy:} $\sum_{i=1}^L w_i t_i^{2k} \neq \mu_{2k}(u)$;
+\item[(3)] \textbf{Signature:} exactly $k$ of the weights $w_i$ are strictly positive and $k - 2$ are strictly negative.
+\end{enumerate}
+Then $r(n, k) = O\!\left(n^{-2k + 1/2}\right)$.
+\end{lemma}
+
+\begin{proof}
+Substitute $y = \sqrt{u}\, x = c / m$ with $x^2 = y^2 / u = c^2 / (u m^2)$, so that the conjugate pair becomes $\sqrt{1 + c/m + c^2/(u m^2)} + \sqrt{1 - c/m + c^2/(u m^2)}$ and each pure term becomes $\sqrt{1 + (t_i/u) c^2 / m^2}$, yielding rational quadratic radicands in $m$ for every $u \in \QQ \setminus \{0\}$. Clear the denominators of $w_1, \dots, w_L$ by multiplying by $W := \operatorname{lcm}_i(\operatorname{denom}(w_i)) \in \ZZ_{>0}$. By condition~(3), this yields $k$ strictly positive integers $A_1, \dots, A_k$ (from $w_i > 0$), $k - 2$ strictly positive integers $B_1, \dots, B_{k-2}$ (from $w_i < 0$), and $B := W \in \ZZ_{>0}$. Choose $c \in \ZZ_{>0}$ divisible by $\operatorname{lcm}(\operatorname{num}(u), \operatorname{denom}(t_1), \dots, \operatorname{denom}(t_L))$ (and large enough that $q_i := A_i^2 t_i c^2 / u \in \ZZ$, $s_j := B_j^2 t_j c^2 / u \in \ZZ$, $r_{\mathrm{pair}} := B^2 c \in \ZZ$, and $s_{\mathrm{pair}} := B^2 c^2 / u \in \ZZ$).
+
+For all integers $m \ge m_0$, all $2k$ quadratic polynomials
+\begin{align*}
+a_i(m) &:= A_i^2 m^2 + q_i \quad (1 \le i \le k), &
+b_j(m) &:= B_j^2 m^2 + s_j \quad (1 \le j \le k - 2), \\
+b_{k-1}(m) &:= B^2 m^2 + r_{\mathrm{pair}} m + s_{\mathrm{pair}}, &
+b_k(m) &:= B^2 m^2 - r_{\mathrm{pair}} m + s_{\mathrm{pair}}
+\end{align*}
+are strictly positive integers bounded above by $M_k m^2$ for a constant $M_k > 0$. By conditions~(1) and~(2),
+\begin{align*}
+\Delta(m) &:= \sum_{i=1}^k \sqrt{a_i(m)} - \sum_{j=1}^k \sqrt{b_j(m)} \\
+&= \binom{1/2}{2k} \frac{W c^{4k}}{u^{2k}} \left(\sum_{i=1}^L w_i t_i^{2k} - \mu_{2k}(u)\right) m^{-(4k - 1)} + O\!\left(m^{-(4k + 1)}\right).
+\end{align*}
+Since $\binom{1/2}{2k} \neq 0$ and $\sum_{i=1}^L w_i t_i^{2k} \neq \mu_{2k}(u)$, there exist $m_1 \ge m_0$ and $c_k > 0$ such that $0 < |\Delta(m)| \le c_k m^{-(4k - 1)}$ for all $m \ge m_1$. Finally, for any integer $n \ge M_k (m_1 + 1)^2$, setting $m := \lfloor \sqrt{n / M_k} \rfloor \ge m_1$ guarantees $1 \le a_i(m), b_j(m) \le M_k m^2 \le n$ and $m \ge \frac{1}{2} \sqrt{n / M_k}$, whence
+\[
+0 < |\Delta(m)| \le c_k \left(2 \sqrt{M_k}\right)^{4k - 1} n^{-(4k - 1)/2} = C_k \, n^{-2k + 1/2}. \qedhere
+\]
+\end{proof}
+
+\subsection{Prony Reformulation and the Two-Quartic Step}
+
+Fix $u \in \QQ \setminus \{0, 4\}$ and let $\langle \cdot \rangle_\mu : \QQ[t] \to \QQ$ denote the linear functional $\langle t^j \rangle_\mu := \mu_j(u)$. Given $L$ distinct nodes $t_1, \dots, t_L \in \QQ$ with monic nodal polynomial $Q(t) := \prod_{i=1}^L (t - t_i)$, the unique Vandermonde weights $w_1, \dots, w_L \in \QQ$ matching $\mu_0, \dots, \mu_{L-1}$ automatically match $\mu_L$ and $\mu_{L+1}$ \emph{if and only if}
+\begin{equation}
+\label{eq:prony}
+\langle Q(t) \rangle_\mu = 0 \qquad \text{and} \qquad \langle t\, Q(t) \rangle_\mu = 0.
+\end{equation}
+Indeed, expanding $t^L = Q(t) + \text{lower terms}$ and $t^{L+1} = t Q(t) + \text{lower terms}$ shows that $\sum w_i t_i^m = \mu_m$ for $m = L, L + 1$ is equivalent to $\langle Q \rangle_\mu = \langle t Q \rangle_\mu = 0$, while condition~(2) of Lemma~\ref{lem:moment-reduction} is equivalent to $\langle t^2 Q(t) \rangle_\mu \neq 0$.
+
+Now factor $Q(t) = A(t)(t^2 + s t + p)$, where $A(t) = \prod_{i=1}^{L-2} (t - t_i)$, and define the shifted moments $\nu_m := \langle t^m A(t) \rangle_\mu$. Then~\eqref{eq:prony} becomes the $2 \times 2$ linear system
+\[
+\nu_2 + s \nu_1 + p \nu_0 = 0, \qquad \nu_3 + s \nu_2 + p \nu_1 = 0,
+\]
+with determinant $\Delta(A) := \nu_1^2 - \nu_0 \nu_2$, solution $s = s_{\mathrm{num}} / \Delta(A)$, $p = p_{\mathrm{num}} / \Delta(A)$ where
+\[
+s_{\mathrm{num}} := -\nu_2 \nu_1 + \nu_3 \nu_0, \qquad p_{\mathrm{num}} := -\nu_1 \nu_3 + \nu_2^2,
+\]
+and quadratic discriminant numerator
+\begin{equation}
+\label{eq:disc-D}
+D(A) := s_{\mathrm{num}}^2 - 4 p_{\mathrm{num}} \Delta(A).
+\end{equation}
+Whenever $\Delta(A) \neq 0$ and $D(A) > 0$ is a \emph{rational square}, the final two nodes
+\[
+t_{L-1}, t_L = \frac{-s \pm \sqrt{D(A)} / |\Delta(A)|}{2}
+\]
+are distinct rational numbers.
+
+\begin{lemma}[Leading-Coefficient Identity and Automatic Rational Point]
+\label{lem:leading-coeff}
+Let $B(t) = \prod_{i=1}^{L-3} (t - t_i)$ be a monic polynomial of degree $L - 3$ with distinct rational roots, and set $A_x(t) := B(t)(t - x)$.
+\begin{enumerate}
+\item[(1)] The discriminant numerator $D(A_x)$ is a polynomial of degree at most $4$ in $x$, whose coefficient of $x^4$ is identically $D(B)$.
+\item[(2)] If $(t_1, \dots, t_{L-2})$ is already a valid $(k-1)$-solution (so $A(t) = B(t)(t - t_{L-2})$ satisfies $\langle A \rangle_\mu = \langle t A \rangle_\mu = 0$ and $\delta := \langle t^2 A \rangle_\mu \neq 0$), then setting $c_0 := w_{L-2} B(t_{L-2}) \neq 0$ we have
+\[
+D(B) = (c_0 \delta)^2 > 0,
+\]
+which is automatically a non-zero rational square.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(1) Letting $\sigma_m := \langle t^m B(t) \rangle_\mu$, we have $\nu_m(x) = \langle t^m B(t)(t - x) \rangle_\mu = \sigma_{m+1} - x \sigma_m$. Since $D$ is homogeneous of degree $4$ in $(\nu_0, \nu_1, \nu_2, \nu_3)$, the coefficient of $x^4$ in $D(A_x)$ equals
+\[
+D(-\sigma_0, -\sigma_1, -\sigma_2, -\sigma_3) = D(\sigma_0, \sigma_1, \sigma_2, \sigma_3) = D(B).
+\]
+
+(2) Because the $(k-1)$-solution $(t_1, \dots, t_{L-2})$ with weights $(w_1, \dots, w_{L-2})$ matches moments $0, \dots, L - 1$ and $\deg B = L - 3$, we have $B(t_i) = 0$ for $1 \le i \le L - 3$, hence
+\[
+\sigma_m = \sum_{i=1}^{L-2} w_i t_i^m B(t_i) = c_0 t_{L-2}^m \qquad (m = 0, 1, 2).
+\]
+For $m = 3$, using $t^3 B(t) = t^2 A(t) + t_{L-2} t^2 B(t)$ gives $\sigma_3 = \langle t^2 A \rangle_\mu + t_{L-2} \sigma_2 = c_0 t_{L-2}^3 + \delta$. Direct substitution into~\eqref{eq:disc-D} yields $\Delta(B) = \sigma_1^2 - \sigma_0 \sigma_2 = 0$ and $s_{\mathrm{num}}(B) = -\sigma_2 \sigma_1 + \sigma_3 \sigma_0 = c_0 \delta$, so $D(B) = (c_0 \delta)^2 > 0$.
+\end{proof}
+
+\begin{lemma}[Universal $3$-Torsion, Non-Vanishing $\psi_3'(0)$, and Dipole Opening]
+\label{lem:universal-dipole}
+Let $(t_1, \dots, t_L)$ be any valid $m$-solution ($m \ge 2$, $L = 2m - 2$) with non-zero weights $(w_1, \dots, w_L)$ and nodal polynomial $Q(t) = A_{\mathrm{prev}}(t)(t - t_{L-1})(t - t_L)$, where $A_{\mathrm{prev}}(t) = \prod_{i=1}^{L-2} (t - t_i)$ and $\delta_Q := \langle t^2 Q(t) \rangle_\mu \neq 0$. Translate coordinates by $t \mapsto t + t_L$ (so $t_L = 0$ and $t_{L-1} = -a$ with $a := t_L - t_{L-1} \neq 0$), and set
+\[
+n_1 := \langle t A_{\mathrm{prev}}(t) \rangle_\mu = -a w_{L-1} A_{\mathrm{prev}}(t_{L-1}) \neq 0, \qquad
+c_0 := \langle (t + a) A_{\mathrm{prev}}(t) \rangle_\mu = a w_L A_{\mathrm{prev}}(t_L) \neq 0.
+\]
+Consider the $1$-parameter family of quartic curves
+\[
+E_2(\varepsilon) \;:\; Z^2 = D_2(\varepsilon, y) := D\!\Big(A_{\mathrm{prev}}(t)(t + a - \varepsilon)(t - y)\Big)
+\]
+for small $\varepsilon \in \QQ$ with $D_1(-a + \varepsilon) = \square$ (supplying rational points at infinity $Q_\infty^\pm \in E_2(\varepsilon)(\QQ)$ by Lemma~\ref{lem:leading-coeff}(1)). Then:
+\begin{enumerate}
+\item[(1)] \textbf{Unbounded component and exact universal $3$-torsion at $\varepsilon = 0$:} Writing $s_4 := \langle t^3 Q(t) \rangle_\mu / \delta_Q$,
+\[
+D_2(0, y) = c_0^2 \delta_Q^2 \, y \left(y (y - s_4)^2 - \frac{4 \delta_Q}{c_0}\right).
+\]
+In particular, $D_2(0, y) > 0$ on the entire half-line $\{y : \operatorname{sgn}(y) = -\operatorname{sgn}(\delta_Q / c_0)\}$, so $y = 0$ always lies on the unbounded real component containing $Q_\infty^\pm$. Moreover, on $E_2(0)$,
+\[
+\operatorname{div}\!\left(\frac{\big(Z - c_0 \delta_Q y(y - s_4)\big)^2}{y}\right) = 3\big(Q_\infty^+ - Q_\infty^-\big),
+\]
+so $[Q_\infty^- - Q_\infty^+]$ has exact order $3$ at $\varepsilon = 0$ (and its real elliptic logarithm $\alpha(\varepsilon) \in \RR/\ZZ$ on the unbounded component converges continuously to $\pm \frac{1}{3}$ as $\varepsilon \to 0$, whether $E_2(0)$ is smooth or has a real node at $y = s_4 / 3$ outside the unbounded component).
+\item[(2)] \textbf{Universal non-vanishing derivative of the $3$-division polynomial:} Transforming $E_2(\varepsilon)$ to Weierstrass form with $Q_\infty^+$ at infinity, the $3$-division polynomial of $[Q_\infty^- - Q_\infty^+]$ satisfies identically
+\[
+\psi_3(0) = 0, \qquad \psi_3'(0) = 196608 \, a \, \delta_Q^{10} \, n_1 \, c_0^5 \neq 0.
+\]
+Consequently, for every sufficiently small rational $\varepsilon \neq 0$ with $D_1(-a + \varepsilon) = \square$, either $E_2(\varepsilon)$ is a smooth elliptic curve on which $[Q_\infty^- - Q_\infty^+]$ has order $> 12$ (hence \emph{infinite order} by Mazur's Torsion Theorem~\cite{Mazur1977}), or $E_2(\varepsilon)$ is a singular genus-$0$ conic with the rational point $Q_\infty^+$. In either case, $E_2(\varepsilon)(\QQ)$ is topologically dense in the unbounded real component of $E_2(\varepsilon)(\RR)$.
+\item[(3)] \textbf{Dipole opening, unbounded scale $R' \to +\infty$, and universal opposite signs:} For $\varepsilon \to 0$ with $\operatorname{sgn}(\varepsilon) = \operatorname{sgn}\!\big(\delta_Q / (a n_1)\big)$, the open dipole interval $I_{\mathrm{dip}}(\varepsilon)$ between the root $y_{\mathrm{root}}(\varepsilon)$ of $D_2(\varepsilon, \cdot)$ and the adjacent root $y_{\mathrm{pole}}(\varepsilon)$ of $\Delta_2(\varepsilon, \cdot)$ satisfies
+\[
+y_{\mathrm{pole}}(\varepsilon) - y_{\mathrm{root}}(\varepsilon) = -\frac{a^2 n_1^2}{4 \delta_Q c_0}\, \varepsilon^2 + O(\varepsilon^3),
+\]
+so $I_{\mathrm{dip}}(\varepsilon)$ lies strictly inside the unbounded real component of $E_2(\varepsilon)(\RR)$. As $y$ sweeps $I_{\mathrm{dip}}(\varepsilon)$, the shifted moments $\tau_j = \langle t^j A_{\mathrm{prev}}(t)(t + a - \varepsilon)(t - y) \rangle_\mu$ satisfy $\tau_2 = \delta_Q + O(\varepsilon)$, $\tau_1 = a n_1 \varepsilon + O(\varepsilon^2)$, and $\tau_0 = \lambda' \tau_1^2 / \tau_2$ with $\lambda'$ sweeping continuously across $(\frac{3}{4}, 1)$, giving scale $R' := \tau_2 / \tau_1 = \frac{\delta_Q}{a n_1 \varepsilon} + O(1) \to +\infty$. For every $\lambda' \in (\frac{3}{4}, 1)$, the two new nodes $t_{L+1} = r_1 R' + O(1)$, $t_{L+2} = r_2 R' + O(1)$ (roots of $(1 - \lambda')r^2 - r + 1 = 0$) carry strictly opposite-signed weights $(+1, -1)$ while all $L$ old weights vary by $O(\varepsilon)$, preserving all $L$ original signs.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(1) Since $\langle Q \rangle_\mu = \langle t Q \rangle_\mu = 0$ and $Q(t) = (t + a) t A_{\mathrm{prev}}(t)$, the moments $\sigma_j := \langle t^j (t + a) A_{\mathrm{prev}}(t) \rangle_\mu$ satisfy $\sigma_0 = c_0$, $\sigma_1 = \sigma_2 = 0$, $\sigma_3 = \delta_Q$, and $\sigma_4 = s_4 \delta_Q$. Substituting $\tau_j = \sigma_{j+1} - y \sigma_j$ into~\eqref{eq:disc-D} directly gives $D_2(0, y) = c_0^2 \delta_Q^2 y^2 (y - s_4)^2 - 4 c_0 \delta_Q^3 y$. For $y$ of sign $-\operatorname{sgn}(\delta_Q / c_0)$, $y(y - s_4)^2$ and $-4 \delta_Q / c_0$ have the same sign, so $D_2(0, y) > 0$ on the entire half-line; moreover, if $E_2(0)$ is singular, its double root $y_0 = s_4 / 3$ satisfies $y_0 (y_0 - \frac{4}{3} s_4) = -\frac{1}{3} s_4^2 < 0$ and is strictly separated from the unbounded component $\{y : y(y - \frac{4}{3} s_4) \ge 0\}$, where the inversion $w = 1/(y - y_0)$ gives continuous convergence of the real elliptic logarithm to the circle angle $\frac{1}{2} \pm \frac{1}{\pi}\arcsin(\frac{1}{2}) = \pm \frac{1}{3} \pmod{1}$. The principal divisor identity follows from $(Z - c_0 \delta_Q y(y - s_4))(Z + c_0 \delta_Q y(y - s_4)) = -4 c_0 \delta_Q^3 y$, noting that $\operatorname{div}(y) = 2(0, 0) - Q_\infty^+ - Q_\infty^-$ and $\operatorname{div}(Z - c_0 \delta_Q y(y - s_4)) = (0, 0) + Q_\infty^+ - 2 Q_\infty^-$.
+
+(2) Exact symbolic expansion in dual numbers $\bmod\,\varepsilon^2$ (verified in \texttt{scripts/verify\_general\_k.py}) yields $\psi_3(0) = 0$ and $\psi_3'(0) = 196608\, a \, \delta_Q^{10} \, n_1 \, c_0^5 \neq 0$. Since $\lim_{\varepsilon \to 0} \alpha(\varepsilon) = \pm \frac{1}{3} \pmod{1}$ and $\min\{|p/q - 1/3| : 1 \le q \le 12,\, p/q \neq 1/3\} = \frac{1}{12}$, every sufficiently small $\varepsilon \neq 0$ satisfies $0 < |\alpha(\varepsilon) - (\pm \frac{1}{3})| < \frac{1}{12}$ (excluding $q = 3$ via $\psi_3(\varepsilon) \neq 0$ and all other $q \le 12$ via $|\alpha(\varepsilon) - (\pm \frac{1}{3})| < \frac{1}{12}$). If $E_2(\varepsilon)$ is smooth, Mazur's Torsion Theorem~\cite{Mazur1977} implies $[Q_\infty^- - Q_\infty^+]$ has infinite order and Kronecker density on $E_2(\varepsilon)(\RR)^\circ$ gives density of $E_2(\varepsilon)(\QQ)$ on the unbounded component; if $E_2(\varepsilon)$ has a double root (necessarily rational, as the two endpoints of the unbounded component are simple), stereographic projection from $Q_\infty^+$ parameterizes $E_2(\varepsilon)$ over $\QQ$, again giving density on the entire real locus.
+
+(3) Setting $y = -\frac{n_1}{c_0} \varepsilon + y_2 \varepsilon^2$, direct expansion gives $\tau_1 = a n_1 \varepsilon + O(\varepsilon^2)$, $\tau_2 = \delta_Q + O(\varepsilon)$, $D_2(\varepsilon, y) = a^2 \delta_Q^2 n_1^2 (4\lambda' - 3)\varepsilon^2 + O(\varepsilon^3)$, $\Delta_2(\varepsilon, y) = a^2 n_1^2 (1 - \lambda')\varepsilon^2 + O(\varepsilon^3)$, and $y_{\mathrm{pole}}(\varepsilon) - y_{\mathrm{root}}(\varepsilon) = -\frac{a^2 n_1^2}{4 \delta_Q c_0}\varepsilon^2 + O(\varepsilon^3)$, whose sign matches $-\operatorname{sgn}(\delta_Q / c_0)$, placing $I_{\mathrm{dip}}(\varepsilon)$ inside the unbounded component. For every $\lambda' \in (\frac{3}{4}, 1)$, the rescaled new nodes $r_1 < r_2$ are the positive roots of $(1 - \lambda')r^2 - r + 1 = 0$. Evaluating at $r = 1/\lambda'$ gives $(1 - \lambda')^2/(\lambda')^2 > 0$, while the midpoint $\frac{1}{2(1 - \lambda')} > \frac{1}{\lambda'}$ (since $\lambda' > \frac{2}{3}$); hence $1/\lambda' < r_1 < r_2$ and $1 - r_2 \lambda' < 1 - r_1 \lambda' < 0$. By Lagrange interpolation, the two new weights are
+\[
+w_{L+1} \sim \frac{\delta_Q (1 - r_2 \lambda') / R'}{-(r_1 R')^L (r_2 - r_1) R'}, \qquad
+w_{L+2} \sim \frac{\delta_Q (1 - r_1 \lambda') / R'}{+(r_2 R')^L (r_2 - r_1) R'},
+\]
+whose numerators share the same sign ($-\operatorname{sgn}(\delta_Q)$) while their denominators have strictly opposite signs, giving exact signature $(+1, -1)$. Meanwhile, for $1 \le i \le L$, the old weights satisfy $w_i' = w_i + O(\varepsilon)$, preserving all $L$ original signs for small $\varepsilon$.
+\end{proof}
+
+\section{Proof of Theorem~\ref{thm:general-k}: $r(n, k) = O(n^{-2k + 1/2})$ for All $k \ge 2$}
+\label{sec:general-k}
+
+We now fix $u = -4$ throughout this section. For $k = 2$, $(t_1, t_2) = (0, 6)$ with weights $(w_1, w_2) = (\frac{4}{3}, \frac{2}{3})$ satisfies conditions~(1)--(3) of Lemma~\ref{lem:moment-reduction} (matching $\mu_0 = 2, \mu_1 = 4, \mu_2 = 24, \mu_3 = 144$, with $\sum w_i t_i^4 = 864 \neq \frac{4256}{5} = \mu_4$). To establish Theorem~\ref{thm:general-k} for all $k \ge 3$, we prove by induction on $m \ge 3$ the following quantitative statement.
+
+\begin{definition}[Induction Hypothesis $\mathcal{H}(m)$, $m \ge 3$]
+There exists a constant $B_m > 0$ such that for every threshold $M > 0$, there exist $L = 2m - 2$ distinct rational numbers $t_1, \dots, t_L \in \QQ$ satisfying conditions~(1)--(3) of Lemma~\ref{lem:moment-reduction} for $k = m$ and $u = -4$, such that letting $A_{\mathrm{prev}}(t) := \prod_{i=1}^{L-2} (t - t_i)$ and $\nu_j := \langle t^j A_{\mathrm{prev}}(t) \rangle_\mu$:
+\begin{enumerate}
+\item[(a)] $\delta := \nu_2 \neq 0$ and $|\nu_j / \delta| \le B_m$ for $j = 3, 4, 5$;
+\item[(b)] $\nu_1 = \delta / R$ and $\nu_0 = \lambda \delta / R^2$ with $R > M$ and $\lambda \in (0.83, 0.85)$.
+\end{enumerate}
+\end{definition}
+
+Note that at the center $\lambda_0 = \frac{21}{25} = 0.84$, the final two nodes satisfy $t_{L-1} = r_1 R + O(1)$ and $t_L = r_2 R + O(1)$ with $r_1 = \frac{5}{4}$, $r_2 = 5$.
+
+\subsection{Base Case $\mathcal{H}(3)$}
+
+Start from the fixed $k = 2$ solution $(t_1, t_2) = (0, 6)$ with $w_1 = \frac{4}{3}, w_2 = \frac{2}{3}$ and $\delta_Q = \mu_4 - 6\mu_3 = -\frac{64}{5} \neq 0$. Perturbing $t_1 = 0 \to \varepsilon$ defines the smooth genus-$1$ quartic curve
+\[
+E_1^{(3)} \;:\; Y^2 = D_1(\varepsilon) = \frac{4096}{25}\left(225 \varepsilon^4 - 2680 \varepsilon^3 + 8104 \varepsilon^2 - 736 \varepsilon + 16\right).
+\]
+By Lemma~\ref{lem:leading-coeff}(2), $P_0^\pm = (0, \pm \frac{256}{5}) \in E_1^{(3)}(\QQ)$ lie on the unbounded real component $(-\infty, 0.03530\dots] \cup [5.92472\dots, +\infty)$. Transforming $E_1^{(3)}$ birationally to Weierstrass form with $P_0^+$ at infinity, exact rational arithmetic (\texttt{scripts/verify\_general\_k.py}) verifies $j \cdot [P_0^+ - P_0^-] \neq \mathcal{O}$ for all $1 \le j \le 12$. By Mazur's Torsion Theorem~\cite{Mazur1977}, $[P_0^+ - P_0^-]$ has infinite order in $E_1^{(3)}(\QQ)$, so by Kronecker's theorem rational points $\varepsilon \in E_1^{(3)}(\QQ)$ are dense near $\varepsilon = 0$.
+
+Now let $M > 0$ be given. Since $(t_1, t_2) = (0, 6)$ is fixed, Lemma~\ref{lem:universal-dipole}(2)--(3) applies directly: pick a sufficiently small rational $\varepsilon > 0$ with $D_1(\varepsilon) = \square$ so that $E_2^{(3)}(\varepsilon)(\QQ)$ is dense in $I_{\mathrm{dip}}(\varepsilon)$, $R' = \frac{4}{15\varepsilon} + O(1) > M$, and the perturbed old weights stay positive ($w_1' = \frac{4}{3} + O(\varepsilon) > 0$, $w_2' = \frac{2}{3} + O(\varepsilon) > 0$). Choosing a rational $y \in E_2^{(3)}(\varepsilon)(\QQ) \cap I_{\mathrm{dip}}(\varepsilon)$ where $\lambda' \in (0.83, 0.85)$ yields four distinct rational nodes $(\varepsilon, y, t_3, t_4)$ with signature $(+3, -1)$, $R' > M$, and $|\tau_j / \tau_2| \le B_3$ uniformly as $\varepsilon \to 0^+$ (since $\tau_j \to \langle t^j t(t - 6) \rangle_\mu$ and $\tau_2 \to -\frac{64}{5}$). This proves $\mathcal{H}(3)$.
+
+\subsection{Inductive Step $\mathcal{H}(m) \implies \mathcal{H}(m + 1)$ ($m \ge 3$)}
+
+Assume $\mathcal{H}(m)$ holds with constant $B_m > 0$. We first show that for a \emph{single} sufficiently large scale $R > M_1(B_m)$, the first quartic curve $E_1$ has dense rational points near $t_{L-1}$, and then hold that $m$-solution \emph{completely fixed} while applying Lemma~\ref{lem:universal-dipole} to achieve any desired threshold $M' > 0$.
+
+\paragraph{Step 1: Universal $R \to \infty$ scaling limit for $E_1$.}
+For any $m$-solution from $\mathcal{H}(m)$, set $e := 1/R$ and rescale $x = \xi R$. Substituting $\nu_0 = \lambda \delta e^2$, $\nu_1 = \delta e$, $\nu_2 = \delta$, and $|\nu_j / \delta| \le B_m$ ($j = 3, 4, 5$) into $D_1(x) = D(A_{\mathrm{prev}}(t)(t - x))$ yields an exact $m$-independent, $B_m$-independent leading asymptotic as $e \to 0$ (verified symbolically in \texttt{scripts/verify\_general\_k.py}):
+\begin{equation}
+\label{eq:U1}
+e^4 D_1(\xi R) = e^2 \delta^4\, \xi^2 \Big((4\lambda - 3)\xi^2 + 2\xi - 3\Big) + O(e^3),
+\end{equation}
+where the implied constant in $O(e^3)$ depends only on $B_m$ and compact subsets of $\xi$. At $\xi = r_1$ (the unperturbed scaled node $t_{L-1}/R = r_1 + O(e)$), $(4\lambda - 3)r_1^2 + 2 r_1 - 3 = (r_1 - 1)^2 > 0$, so $P_0^\pm = (t_{L-1}, \pm c_0 \delta_Q) \in E_1(\QQ)$ (guaranteed rational by Lemma~\ref{lem:leading-coeff}(2)) lie strictly inside the unbounded real component $(-\infty, r_-] \cup [r_+, +\infty)$ of $E_1(\RR)$.
+
+\paragraph{Step 2: Convergence of elliptic logarithms to $S^1$ nodal angles.}
+For any real quartic family $f_e(\xi) = \xi^2(a \xi^2 + b \xi - s^2) + e\, g_e(\xi)$ with $a > 0$, $s > 0$, and $g_e$ bounded on compact sets, the inversion $w = 1/\xi$ maps the unbounded real component onto a compact interval $[w_-(e), w_+(e)]$ strictly bounded away from the two merging roots $w = O(1/e)$ near $\xi = 0$, transforming the holomorphic differential into
+\[
+\frac{d\xi}{\sqrt{f_e(\xi)}} = -\frac{dw}{\sqrt{a + b w - s^2 w^2 + e\, w^4 g_e(1/w)}}.
+\]
+By Dominated Convergence, as $e \to 0^+$, the real period $\Omega_e \to \frac{2\pi}{s}$ and the real elliptic logarithm $\alpha_e(P) \in \RR/\ZZ$ of any point $P$ bounded away from $\xi = 0$ converges uniformly to the exact circle angle
+\begin{equation}
+\label{eq:circle-angle}
+\alpha_0(P) = \frac{1}{2\pi}\left[\arcsin\!\left(\frac{2 s^2 w(P) - b}{\sqrt{b^2 + 4 a s^2}}\right) - \arcsin\!\left(\frac{2 s^2 w(O) - b}{\sqrt{b^2 + 4 a s^2}}\right)\right] \pmod{1}.
+\end{equation}
+
+\paragraph{Step 3: Density of rational points on $E_1$ for one fixed large $R$.}
+Apply Step~2 to~\eqref{eq:U1} ($a = 4\lambda - 3 > 0$, $b = 2$, $s = \sqrt{3}$). At $\lambda_0 = \frac{21}{25}$ ($r_1 = \frac{5}{4}$, $w(P_0^\pm) = \frac{4}{5}$), the exact limiting angle of $[P_0^+ - P_0^-]$ corresponds to the unit complex number
+\[
+z(P_0^+ - P_0^-) = \frac{23 + 7 i \sqrt{3}}{26}, \qquad \min_{1 \le j \le 12} |z^j - 1| = 0.457564\dots > 0.45.
+\]
+By continuity of~\eqref{eq:circle-angle} on $\lambda \in [0.83, 0.85]$, the limiting angle stays bounded away from every torsion angle $p/q$ ($1 \le q \le 12$) by at least $0.03$. Hence there exists a threshold $M_1 = M_1(B_m) > 0$ such that for any $m$-solution from $\mathcal{H}(m)$ with $R > M_1$, either:
+\begin{itemize}
+\item $E_1$ is a smooth elliptic curve, in which case $[P_0^+ - P_0^-]$ has order $> 12$ and therefore \emph{infinite order} by Mazur's Torsion Theorem~\cite{Mazur1977}, so $E_1(\QQ)$ is dense in the unbounded component containing $P_0^\pm$ by Kronecker's theorem; or
+\item $E_1$ has a double root near $\xi = 0$ (necessarily rational, since the other two roots $r_\pm$ are simple), in which case $E_1$ is a rational conic with the rational point $P_0^+$, so stereographic projection makes $E_1(\QQ)$ dense in the entire real locus.
+\end{itemize}
+
+\paragraph{Step 4: Closing the induction with a fixed $m$-solution.}
+Invoke $\mathcal{H}(m)$ \emph{once} with threshold $M_1(B_m)$ to fix a single valid $m$-solution $(t_1, \dots, t_L)$ with non-zero weights $(w_1, \dots, w_L)$, nodal polynomial $Q(t)$, and $\delta_Q = \langle t^2 Q(t) \rangle_\mu \neq 0$. Define the constant
+\[
+B_{m+1} := 1 + \max_{j \in \{3, 4, 5\}} \left|\frac{\langle t^j Q(t) \rangle_\mu}{\delta_Q}\right|,
+\]
+which depends only on this fixed $m$-solution (and is completely independent of any future threshold $M'$).
+
+Now let an arbitrary threshold $M' > 0$ be given. By Step~3, rational points $x = t_{L-1} + \varepsilon \in E_1(\QQ)$ are dense on both sides of $t_{L-1}$. Applying Lemma~\ref{lem:universal-dipole}(2)--(3) to the fixed $m$-solution $(t_1, \dots, t_L)$, choose a sufficiently small rational $\varepsilon$ of sign $\operatorname{sgn}(\delta_Q / (a n_1))$ with $D_1(t_{L-1} + \varepsilon) = \square$ such that:
+\begin{itemize}
+\item $E_2(\varepsilon)(\QQ)$ is dense in $I_{\mathrm{dip}}(\varepsilon)$;
+\item $R' = \frac{\delta_Q}{a n_1 \varepsilon} + O(1) > M'$;
+\item all $L$ perturbed old weights satisfy $|w_i' - w_i| < \frac{1}{2}|w_i|$ (preserving all $L$ signs);
+\item for every $y \in I_{\mathrm{dip}}(\varepsilon)$ (note $y = t_L + O(\varepsilon)$), the shifted moments $\tau_j$ satisfy $|\tau_j / \tau_2| = |\langle t^j Q(t) \rangle_\mu / \delta_Q| + O(\varepsilon) \le B_{m+1}$ for $j = 3, 4, 5$.
+\end{itemize}
+Finally, pick a rational $y \in E_2(\varepsilon)(\QQ) \cap I_{\mathrm{dip}}(\varepsilon)$ in the non-empty open sub-interval where $\lambda' \in (0.83, 0.85)$. By Lemma~\ref{lem:universal-dipole}(3), the resulting $L + 2 = 2m$ distinct rational nodes $(t_1, \dots, t_{L-2}, t_{L-1} + \varepsilon, y, t_{L+1}, t_{L+2})$ satisfy conditions~(1)--(3) of Lemma~\ref{lem:moment-reduction} with signature $(+(m+1), -(m-1))$, scale $R' > M'$, and $|\tau_j / \tau_2| \le B_{m+1}$. This establishes $\mathcal{H}(m + 1)$.
+
+By induction, $\mathcal{H}(k)$ holds for every $k \ge 3$. Combined with $k = 2$ and Lemma~\ref{lem:moment-reduction}, this completes the proof of Theorem~\ref{thm:general-k}. \qed
+
+\subsection{Symbolic and 250-Digit Inductive Verification}
+
+Our companion script \texttt{scripts/verify\_general\_k.py} independently verifies every symbolic identity in Sections~\ref{sec:prony}--\ref{sec:general-k} in exact SymPy rational arithmetic (non-torsion $m = 1 \dots 12$ on $E_1^{(3)}$, universal identity $\psi_3(0) = 0$ and $\psi_3'(0) = 196608 \, a \, \delta_Q^{10} \, n_1 \, c_0^5$ of Lemma~\ref{lem:universal-dipole}, universal limit $U_1(\xi)$, and $\min_{1 \le m \le 12} |z^m - 1| = 0.457564$) and executes the inductive dipole chain at $250$-digit precision from $k = 2$ through $k = 8$ (Table~\ref{tab:inductive}).
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{250-digit execution of the inductive dipole chain from $k = 2$ to $k = 8$ at $u = -4$ (\texttt{scripts/verify\_general\_k.py}). At every step, exact signature $(+k, -(k-2))$ holds, moments $0 \dots 2k - 1$ vanish to $< 10^{-122}$, and moment $2k$ is strictly non-zero.}
+\label{tab:inductive}
+\begin{tabular}{@{}cccccr@{}}
+\toprule
+$k$ & Target Bound & Signature & Scale $R$ & $\lambda$ & $\max_{0 \le j < 2k} |\text{err}_j|$ \\
+\midrule
+$3$ & $O(n^{-5.5})$ & $(+3, -1)$ & $2.67 \times 10^{3}$ & $0.8403$ & $1.76 \times 10^{-238}$ \\
+$4$ & $O(n^{-7.5})$ & $(+4, -2)$ & $2.03 \times 10^{5}$ & $0.8400$ & $4.30 \times 10^{-225}$ \\
+$5$ & $O(n^{-9.5})$ & $(+5, -3)$ & $2.67 \times 10^{7}$ & $0.8400$ & $1.13 \times 10^{-207}$ \\
+$6$ & $O(n^{-11.5})$ & $(+6, -4)$ & $5.38 \times 10^{9}$ & $0.8400$ & $7.64 \times 10^{-185}$ \\
+$7$ & $O(n^{-13.5})$ & $(+7, -5)$ & $2.20 \times 10^{12}$ & $0.8400$ & $3.97 \times 10^{-157}$ \\
+$8$ & $O(n^{-15.5})$ & $(+8, -6)$ & $9.03 \times 10^{14}$ & $0.8400$ & $2.16 \times 10^{-123}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Explicit Polynomial Families for $k = 2, 3, 4$}
+\label{sec:explicit}
+
+\subsection{Constant-Norm Family for $k = 2$ ($u = -4$)}
+
+Taking $(t_1, t_2) = (0, 6)$ and $(w_1, w_2) = (\frac{4}{3}, \frac{2}{3})$ at $u = -4$ with $W = 3, c = 2$ yields
+\[
+a_1(m) = 16 m^2, \qquad a_2(m) = 4 m^2 - 24, \qquad b_{1,2}(m) = 9 m^2 \pm 18 m - 9.
+\]
+Remarkably, the degree-$4$ algebraic norm
+\[
+M(a_1, a_2, b_1, b_2) := \Big((a_1 + a_2 - b_1 - b_2)^2 - 4 a_1 a_2 - 4 b_1 b_2\Big)^2 - 64 a_1 a_2 b_1 b_2
+\]
+evaluates identically to the \emph{constant} $M(a_1(m), a_2(m), b_1(m), b_2(m)) \equiv 82944 = 2^{10} \cdot 3^4$ for every $m \in \ZZ$. Because all four conjugate factors in $M$ satisfy clean elementary bounds for $m \ge 3$ (Section~\ref{sec:lean}), this yields an immediate non-zero lower bound and the explicit upper bound $\Delta_2(m) \le 27 m^{-7}$ without any Taylor series at all, while its exact asymptotic expansion is $\Delta_2(m) = -\frac{3}{2} m^{-7} - 15 m^{-9} + O(m^{-11})$.
+
+\subsection{Compact Explicit Family for $k = 3$ ($u = 5$): Proof of Theorem~\ref{thm:k3-explicit}}
+
+Scanning small rational parameters $u$ and $t_1$ followed by a single Fermat quartic step reveals a remarkably small-integer realization at $u = 5$, with nodes and weights
+\[
+t = \left(-\frac{11}{4},\; -\frac{7}{4},\; -\frac{37}{28},\; \frac{1}{36}\right), \qquad
+w = \left(\frac{71}{200},\; \frac{125}{192},\; -\frac{2401}{2040},\; \frac{59049}{27200}\right)
+\]
+(signature $(+3, -1)$). Clearing denominators with $W = 81600$ and $c = 10$ gives the six quadratic polynomials of Theorem~\ref{thm:k3-explicit}.
+
+To make the proof completely elementary and directly formalizable in Lean~4 without analytic Taylor remainder theory, we use pure polynomial squaring. Define the degree-$6$ polynomials
+\begin{align*}
+T_6(t) &:= 1 + \frac{1}{2} t - \frac{1}{8} t^2 + \frac{1}{16} t^3 - \frac{5}{128} t^4 + \frac{7}{256} t^5 - \frac{21}{1024} t^6, \\
+Q_{\mathrm{pair}}(w) &:= 2 - \frac{1}{20} w - \frac{21}{1600} w^2 - \frac{261}{64000} w^3 - \frac{2921}{2048000} w^4 - \frac{221407}{409600000} w^5 - \frac{7096321}{32768000000} w^6.
+\end{align*}
+Since $T_6(t)^2 - (1 + t) = \frac{t^7}{1048576}(441 t^5 - 1176 t^4 + 2464 t^3 - 4928 t^2 + 10560 t - 33792)$ and $\sqrt{1 + t} + T_6(t) \ge \frac{3}{2}$ for $|t| \le \frac{1}{4}$, we obtain the purely algebraic enclosure
+\[
+\left|\sqrt{1 + t} - T_6(t)\right| \le \frac{1}{10} |t|^7 \qquad \left(|t| \le \frac{1}{4}\right),
+\]
+and squaring $P(z) = \sqrt{1 + z + z^2/5} + \sqrt{1 - z + z^2/5}$ (using $P(z)^2 = 2 + \frac{2}{5} z^2 + 2\sqrt{1 - \frac{3}{5} z^2 + \frac{1}{25} z^4}$) similarly yields $|P(z) - Q_{\mathrm{pair}}(z^2)| \le \frac{1}{400} z^{14}$ for $0 \le z \le \frac{1}{10}$. Setting $z = 10/m$ and $w = z^2 = 100/m^2$, the exact polynomial identity
+\begin{align*}
+28968\, T_6\!\left(-\tfrac{11}{20} w\right) &+ 53125\, T_6\!\left(-\tfrac{7}{20} w\right) + 177147\, T_6\!\left(\tfrac{1}{180} w\right) \\
+&- 96040\, T_6\!\left(-\tfrac{37}{140} w\right) - 81600\, Q_{\mathrm{pair}}(w) = -\frac{187}{1792}\, w^6
+\end{align*}
+annihilates all powers $w^0, \dots, w^5$ identically. For every $m \ge 1000$ ($w \le 10^{-4}$), the weighted $O(w^7)$ remainders sum to at most $300 w^7 \le 0.03 w^6 < \frac{1}{2} \cdot \frac{187}{1792} w^6$, proving $0 < |\Delta_3(m)| \le 1.6 \times 10^{11} m^{-11}$. Choosing $m = \lfloor \sqrt{n / 31381100000} \rfloor$ for $n \ge 31\,381\,100\,000\,000\,000$ gives $r(n, 3) \le 10^{70} / (n^5 \sqrt{n})$.
+
+\subsection{Explicit Rational Family for $k = 4$ ($u = 1600/379$)}
+
+\begin{proposition}[Explicit $k = 4$ Rational Family Achieving $O(n^{-15/2})$]
+\label{prop:k4-explicit}
+At $u = \frac{1600}{379} = \frac{16}{5 - (11/10)^2}$, four iterated Fermat quartic steps from Lemma~\ref{lem:leading-coeff} produce six distinct rational nodes $t_1, \dots, t_6 \in \QQ$ and exact rational weights $w_1, \dots, w_6 \in \QQ$ of signature $(+4, -2)$ satisfying $\sum_{i=1}^6 w_i t_i^j = \mu_j(u)$ for $j = 0, \dots, 7$ and $\sum_{i=1}^6 w_i t_i^8 - \mu_8(u) \approx 1.609643 \times 10^4 \neq 0$ (Table~\ref{tab:k4-family}). By Lemma~\ref{lem:moment-reduction}, this gives an explicit polynomial family proving $r(n, 4) = O(n^{-15/2})$.
+\end{proposition}
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{Exact rational $k = 4$ solution at $u = 1600/379$ verified in \texttt{scripts/verify\_k4\_family.py} (exact rational arithmetic; moments $0 \dots 7$ vanish identically, moment $8$ residual $\approx 1.6096 \times 10^4$).}
+\label{tab:k4-family}
+\begin{tabular}{@{}crrcrc@{}}
+\toprule
+$i$ & $t_i$ (approx.) & $\operatorname{bits}(t_i)$ (num/den) & $w_i$ (approx.) & Sign & $\operatorname{bits}(w_i)$ (num/den) \\
+\midrule
+$1$ & $+0.184544$ & $14 / 16$ & $+3.1297$ & $+$ & $14959 / 14957$ \\
+$2$ & $-6.923273$ & $88 / 86$ & $-4.714 \times 10^{-5}$ & $-$ & $15091 / 15106$ \\
+$3$ & $+31.038427$ & $611 / 606$ & $+2.090 \times 10^{-9}$ & $+$ & $16606 / 16635$ \\
+$4$ & $-168.791519$ & $4273 / 4266$ & $+2.205 \times 10^{-14}$ & $+$ & $30933 / 30979$ \\
+$5$ & $-2.024242$ & $4991 / 4990$ & $+0.1266$ & $+$ & $33428 / 33431$ \\
+$6$ & $+0.344318$ & $4988 / 4990$ & $-1.2562$ & $-$ & $33428 / 33427$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Sharp Effective Lower Bounds and Exhaustive Search Records}
+\label{sec:lower-bounds}
+
+\subsection{Proof of Theorem~\ref{thm:k2-bounds}(a): Sharp $k = 2$ Lower Bound}
+
+Let $1 \le a_1, a_2, b_1, b_2 \le n$ with $\Delta := |\sqrt{a_1} + \sqrt{a_2} - \sqrt{b_1} - \sqrt{b_2}| > 0$. Setting $x_i = \sqrt{a_i}$, $y_i = \sqrt{b_i}$, the integer norm
+\[
+M := \Big((a_1 + a_2 - b_1 - b_2)^2 - 4 a_1 a_2 - 4 b_1 b_2\Big)^2 - 64 a_1 a_2 b_1 b_2 \in \ZZ
+\]
+satisfies the exact algebraic factorization
+\begin{equation}
+\label{eq:k2-norm}
+M = \Big((x_1 + x_2)^2 - (y_1 + y_2)^2\Big)\Big((x_1 + x_2)^2 - (y_1 - y_2)^2\Big)\Big((x_1 - x_2)^2 - (y_1 + y_2)^2\Big)\Big((x_1 - x_2)^2 - (y_1 - y_2)^2\Big).
+\end{equation}
+If $M = 0$, one of the last three factors vanishes; in each case, an elementary check shows $|(x_1 + x_2)^2 - (y_1 + y_2)^2| \ge 2$, giving $\Delta \ge \frac{2}{4\sqrt{n}} = \frac{1}{2\sqrt{n}} \ge \frac{1}{4 n^3 \sqrt{n}}$.
+
+If $M \neq 0$, then $|M| \ge 1$. Suppose for contradiction that $\Delta < \frac{1}{4 n^3 \sqrt{n}}$ (note $n \ge 2$ since $\Delta > 0$). Rescaling to $u_i = x_i / \sqrt{n}, v_i = y_i / \sqrt{n} \in (0, 1]$ with $S_1 = u_1 + u_2$, $S_2 = v_1 + v_2$, $S = \max(S_1, S_2) \le 2$, $d_a = |u_1 - u_2|$, $d_b = |v_1 - v_2|$, we have $|S_1 - S_2| = \Delta / \sqrt{n} < \frac{1}{4 n^4} \le \frac{1}{64}$, and~\eqref{eq:k2-norm} gives
+\[
+1 \le |M| = \Delta \cdot n^{7/2} \cdot \underbrace{(S_1 + S_2) \left|S_1^2 - d_b^2\right| \left|d_a^2 - S_2^2\right| \left|d_a^2 - d_b^2\right|}_{=: \, \Phi(u_1, u_2, v_1, v_2)}.
+\]
+When $S_1 = S_2 = S \in [1, 2]$, using $d_a, d_b \le 2 - S$ and $D := \max(d_a^2, d_b^2) \le (2 - S)^2$, we obtain the exact sharp bound
+\[
+\Phi \le 2 S^3 (S^2 - D) D \le 2 S^3 \big(S^2 - (2 - S)^2\big)(2 - S)^2 = 8 S^3 (S - 1)(2 - S)^2 \le \frac{27}{8},
+\]
+since $\frac{27}{8} - 8 S^3(S - 1)(2 - S)^2 = \frac{1}{8}(2S - 3)^2\bigl(16 S^3(2 - S) + 4 S^2 + 4 S + 3\bigr) \ge 0$, with equality uniquely at $S = \frac{3}{2}$ ($u = (1, \frac{1}{2})$, $v = (\frac{3}{4}, \frac{3}{4})$). Including the perturbation $|S_1 - S_2| \le \frac{1}{64}$ (valid for all $n \ge 2$) replaces $(2 - S)$ by $(2 - S + \frac{1}{64})$, and splitting into $S \le \frac{21}{20}$, $\frac{21}{20} < S \le \frac{5}{4}$ (AM--GM: $(S^2 - D)D \le S^4 / 4$), and $\frac{5}{4} < S \le 2$ (monotonicity in $D \le (2 - S + \frac{1}{64})^2 \le S^2/2$) yields $\Phi \le 4$ unconditionally for every $n \ge 2$, contradicting $1 \le \Delta n^{7/2} \Phi < \frac{1}{4} \cdot 4 = 1$. For large $n$, $|S_1 - S_2| = O(n^{-4})$ gives $\Phi \le \frac{27}{8} + O(n^{-4})$ and hence $r(n, 2) \ge (\frac{8}{27} - O(n^{-4})) n^{-7/2}$. \qed
+
+\begin{remark}[Numerical Lower-Bound Constant for $k = 3$]
+For $k = 3$, the norm of $A^2 - B^2$ (where $A = \sqrt{a_1} + \sqrt{a_2} + \sqrt{a_3}$ and $B = \sqrt{b_1} + \sqrt{b_2} + \sqrt{b_3}$) is an integer equal to the product of $16$ sign conjugates of $(A^2 - B^2)$. Numerical global optimization over the normalized simplex $[0, 1]^6$ with $S_1 = S_2$ indicates that the product of the remaining $15$ conjugate factors (times $A + B$) is maximized at the symmetric configuration $u = (s, s, s)$, $v = (3s - 2, 1, 1)$ with value $\approx 5979.6\, n^{31/2}$. Assuming this numerical maximum is global, it yields an empirical separation floor $\approx 1.67 \times 10^{-4} n^{-31/2}$---a factor of $2.2 \times 10^{20}$ sharper than the Burnikel--Fleischer--Mehlhorn--Schirra constant $6^{-31} n^{-31/2}$. Unlike Theorem~\ref{thm:k2-bounds}(a), this $k = 3$ constant is computed numerically and is not yet formally proved.
+\end{remark}
+
+\subsection{Exhaustive Search Records}
+
+Using an exact Rust hunter (combining Besicovitch's linear-independence criterion for zero testing with $256$-bit arithmetic), we computed exact values of $r(n, 2)$ up to $N = 4000$ ($0.40\,$s) and $r(n, 3)$ up to $N = 350$ ($7.2 \times 10^6$ triples in $0.27\,$s). Table~\ref{tab:records} highlights the tightest observed instances. Notice that for $k = 2$, the tightest instance $(446, 1152)$ vs.\ $(514, 1049)$ has $\Delta \cdot n^{3.5} = 0.799351$ (already within $2.7\times$ of our exact asymptotic floor $\frac{8}{27} \approx 0.2963$), and for $k = 3$ the tightest instance at $n = 222$ already reaches $-\log(\Delta)/\log(n) = 5.2498$.
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{Selected exact minimal separations from exhaustive Rust search ($k = 2$ up to $N = 4000$; $k = 3$ up to $N = 350$).}
+\label{tab:records}
+\begin{tabular}{@{}crllrr@{}}
+\toprule
+$k$ & $n$ & $(a_1, \dots, a_k)$ vs.\ $(b_1, \dots, b_k)$ & $\Delta$ & $-\frac{\log \Delta}{\log n}$ & $\Delta \cdot n^{2k - 1/2}$ \\
+\midrule
+$2$ & $100$ & $(28, 82)$ vs.\ $(33, 74)$ & $1.5331 \times 10^{-7}$ & $3.407$ & $1.533$ \\
+$2$ & $990$ & $(86, 990)$ vs.\ $(165, 778)$ & $2.7585 \times 10^{-11}$ & $3.524$ & $0.842$ \\
+$2$ & $1152$ & $(446, 1152)$ vs.\ $(514, 1049)$ & $1.5405 \times 10^{-11}$ & $3.532$ & $0.799$ \\
+\midrule
+$3$ & $30$ & $(14, 15, 16)$ vs.\ $(6, 21, 21)$ & $3.9971 \times 10^{-7}$ & $4.332$ & $53.201$ \\
+$3$ & $120$ & $(36, 39, 115)$ vs.\ $(38, 43, 105)$ & $6.8569 \times 10^{-11}$ & $4.888$ & $18.691$ \\
+$3$ & $222$ & $(85, 110, 214)$ vs.\ $(90, 99, 222)$ & $4.810 \times 10^{-13}$ & $5.250$ & $3.865$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{The 7-Moment Diophantine Barrier for $k = 3$ ($O(n^{-13/2})$)}
+\label{sec:seven-moment}
+
+It is natural to ask whether our quadratic ansatz can push one moment further at $k = 3$---annihilating \emph{seven} moments ($m = 0, \dots, 6$) with $L = 4$ pure terms plus one conjugate pair, which would give $r(n, 3) = O(n^{-13/2})$ and refute the conjecture $r(n, 3) = \Omega(n^{-6})$. We investigated this surface both symbolically and computationally, uncovering a sharp arithmetic transition between $6$ moments and $7$ moments.
+
+\subsection{Exact Algebraic Collapse and Hyperbolic Window}
+
+Introducing the shifted coordinates $v := 1/u$ and $y_i := (t_i - 1)/u$ halves all degrees in $u$ and eliminates all denominators from the $7$-moment system. Writing the monic quartic $Q(y) = \prod_{i=1}^4 (y - y_i) = y^4 + e_1 y^3 + e_2 y^2 + e_3 y + e_4$, the three Prony equations $\langle Q \rangle_\mu = \langle y Q \rangle_\mu = \langle y^2 Q \rangle_\mu = 0$ collapse to the exact affine relations
+\begin{align*}
+v &= \frac{168 e_2 - 222 e_1 + 247}{192}, \\
+E_3 &:\; 7770 e_1^2 - 5880 e_1 e_2 - 17381 e_1 + 5040 e_2 + 6720 e_3 + 10426 = 0, \\
+E_4 &:\; 233100 e_1^2 + 10080 e_1 e_2 - 671580 e_1 - 141120 e_2^2 + 111888 e_2 + 1290240 e_4 + 453947 = 0.
+\end{align*}
+Symbolic analysis of this $2$-dimensional surface $S$ reveals:
+\begin{enumerate}
+\item \textbf{Exact hyperbolic $(+3, -1)$ window:} Real $4$-root solutions with weight signature $(+3, -1)$ exist \emph{if and only if} $v \in \bigl(\frac{97}{420}, \frac{1}{4}\bigr)$, i.e., $u \in \bigl(4, \frac{420}{97}\bigr)$.
+\item \textbf{Local solvability and $p$-adic constraint:} Hensel lifting succeeds at $p = 2, 3, 5, 7$ and over $\mathbb{F}_{11}, \dots, \mathbb{F}_{23}$ (so there is no Brauer--Manin-free local obstruction), but the $2$-, $3$-, and $7$-adic valuations of $E_4$ force $42 \mid \operatorname{lcm}(\operatorname{denom}(y_1), \dots, \operatorname{denom}(y_4))$.
+\item \textbf{Surface of general type and genus-$2$ slices:} The Galois closure of the splitting cover $Q(y) = 0$ over $(e_1, e_2)$ is a surface of general type fibered over $\PP^1_u$ by curves of genus $13$. Moreover, natural $1$-dimensional slices---such as the line $e_2 = \frac{90 e_1 - 37}{120}$ (where $y_1 = -\frac{1}{4}$ factors out identically, leaving a quintic discriminant of genus $2$) and the biquadratic locus $Q(y) = (y^2 + a y + b)(y^2 + a y + d)$ (whose splitting condition is a sextic in $a$ of genus $2$)---have genus $2$, hence only finitely many rational points by Faltings' Theorem.
+\end{enumerate}
+
+\subsection{Modular Sieving Over $8.5 \times 10^7$ Rational Candidates}
+
+We implemented four multi-prime modular sieves in Rust covering the hyperbolic window $v \in (\frac{97}{420}, \frac{1}{4})$, the two genus-$2$ slices, and the resultant elimination $\Phi(y_1, y_2, y_3) = 0$ (where $y_4 \in \QQ$ is determined linearly/quadratically). Across $85\,425\,298$ rational candidates (Table~\ref{tab:seven-moment}), \emph{zero} non-trivial rational points were found. While this does not constitute a proof of non-existence of high-height rational points, the stark geometric contrast between $6$ moments (elliptic Fermat fibrations with Zariski-dense rational points, yielding Theorem~\ref{thm:general-k}) and $7$ moments (a surface of general type, where the Bombieri--Lang conjecture predicts non-density) aligns strikingly with the conjectured barrier $r(n, 3) = \Omega(n^{-6})$.
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{Summary of Rust modular sieves on the $7$-moment $k = 3$ surface ($O(n^{-13/2})$).}
+\label{tab:seven-moment}
+\begin{tabular}{@{}llrr@{}}
+\toprule
+Search Space & Parameters & Candidates & Non-trivial Hits \\
+\midrule
+$(u, t_1)$ in $(4, \frac{420}{97})$ (10-prime sieve) & $q_u \le 250,\; s_{t_1} \le 40$ & $18\,469\,480$ & $0$ \\
+Magic line $y_1 = -\frac{1}{4}$ + 2D $(e_1, e_2)$ band & $q \le 8000;\; D \le 1200$ & $19\,583\,037$ & $0$ \\
+Biquadratic genus-$2$ slice $D_1(a) = \square$ & $q \le 12000$ & $7\,937\,293$ & $0$ \\
+Resultant $\Phi(y_1, y_2, y_3) = 0$ ($y_4$ free) & $42 \mid D \le 504$; mixed $q \le 45$ & $39\,435\,488$ & $0$ \\
+\midrule
+\textbf{Total} & & $\mathbf{85\,425\,298}$ & $\mathbf{0}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Lean 4.36.0 Formalization and Axiom Audit}
+\label{sec:lean}
+
+The explicit $k = 3$ theorem (Theorem~\ref{thm:k3-explicit}) and the complete $k = 2$ theory (Theorem~\ref{thm:k2-bounds}) are formalized and kernel-verified in pure Lean~4.36.0 + Mathlib under the library \texttt{SumOfSquareRoots} (Table~\ref{tab:lean}). All proofs rely exclusively on elementary algebra, polynomial squaring, and exact rational arithmetic---with zero calculus, zero external numerical certificates, zero \texttt{sorry}, zero \texttt{admit}, and zero \texttt{native\_decide}.
+
+Running \texttt{lake env lean check\_axioms.lean} confirms that every one of the seven audited declarations depends \emph{strictly} on the three standard axioms of classical Lean mathematics: \texttt{propext}, \texttt{Classical.choice}, and \texttt{Quot.sound}.
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{Module map of the Lean~4.36.0 library \texttt{SumOfSquareRoots} (all 7 audited declarations depend strictly on \texttt{[propext, Classical.choice, Quot.sound]}).}
+\label{tab:lean}
+\begin{tabular}{@{}lr>{\raggedright\arraybackslash}p{8.6cm}@{}}
+\toprule
+Module & Lines & Key Verified Declarations \\
+\midrule
+\texttt{Basic.lean} & 89 &
+\texttt{diff2}, \texttt{diff3}, \texttt{T6}, \texttt{sqrt\_one\_add\_approx} ($|\sqrt{1+t} - T_6(t)| \le \frac{1}{10}|t|^7$ for $|t| \le \frac{1}{4}$) \\[4pt]
+\texttt{K2Bounds.lean} & 722 &
+\texttt{k2\_norm\_identity}, \texttt{k2\_exact\_constant\_bound} (sharp $\frac{27}{8}$), \texttt{k2\_lower\_bound} (Theorem~\ref{thm:k2-bounds}a: $\ge \frac{1}{4 n^3\sqrt{n}}$ for all $n \ge 1$), \texttt{k2\_upper\_bound\_family} (constant norm $82944$), \texttt{k2\_upper\_bound} (Theorem~\ref{thm:k2-bounds}b) \\[4pt]
+\texttt{K3UpperBound.lean} & 408 &
+\texttt{Qpair}, \texttt{k3\_exact\_moment\_cancellation} (exact $-\frac{187}{1792} w^6$), \texttt{k3\_pair\_approx}, \texttt{k3\_upper\_bound\_family} ($u = 5$ family), \texttt{k3\_upper\_bound} (Theorem~\ref{thm:k3-explicit}: $r(n, 3) \le 10^{70}/(n^5\sqrt{n})$) \\[4pt]
+\texttt{SumOfSquareRoots.lean} & 3 & Root aggregator module \\
+\midrule
+\textbf{Total library} & \textbf{1,222} & 7 audited main declarations (plus 9 lines in \texttt{check\_axioms.lean}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{thebibliography}{99}
+
+\bibitem{GareyGrahamJohnson1976}
+M.~R.~Garey, R.~L.~Graham, and D.~S.~Johnson,
+\emph{Some NP-complete geometric problems},
+in Proc.\ 8th Annual ACM Symposium on Theory of Computing (STOC), 1976, pp.~10--22.
+
+\bibitem{Mazur1977}
+B.~Mazur,
+\emph{Modular curves and the Eisenstein ideal},
+Publ.\ Math.\ Inst.\ Hautes \'Etudes Sci.\ \textbf{47} (1977), 33--186.
+
+\bibitem{BFMS2000}
+C.~Burnikel, R.~Fleischer, K.~Mehlhorn, and S.~Schirra,
+\emph{A strong and easily computable separation bound for arithmetic expressions involving radicals},
+Algorithmica \textbf{27} (2000), no.~1, 87--99.
+
+\bibitem{QianWang2006}
+J.~Qian and C.~A.~Wang,
+\emph{How much precision is needed to compare two sums of square roots of integers?},
+Inform.\ Process.\ Lett.\ \textbf{100} (2006), no.~5, 194--198.
+
+\bibitem{ABKM2009}
+E.~Allender, P.~B\"urgisser, J.~Kjeldgaard-Pedersen, and P.~B.~Miltersen,
+\emph{On the complexity of numerical analysis},
+SIAM J.\ Comput.\ \textbf{38} (2009), no.~5, 1987--2006.
+
+\bibitem{Cheng2010}
+Q.~Cheng, X.~Meng, C.~Sun, and J.~Chen,
+\emph{Bounding the sum of square roots via lattice reduction},
+Math.\ Comp.\ \textbf{79} (2010), no.~270, 1109--1122.
+
+\bibitem{TOPP33}
+E.~D.~Demaine, J.~S.~B.~Mitchell, and J.~O'Rourke,
+\emph{The Open Problems Project, Problem 33: Sum of Square Roots},
+\url{https://topp.openproblem.net/p33}.
+
+\bibitem{EHS2024}
+F.~Eisenbrand, M.~Haeberle, and N.~Singer,
+\emph{An improved bound for the sum-of-square-roots problem via the Subspace Theorem},
+in Proc.\ 40th International Symposium on Computational Geometry (SoCG 2024), LIPIcs \textbf{293}, 2024.
+
+\end{thebibliography}
+
+\end{document}
